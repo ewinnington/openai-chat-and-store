@@ -1,2 +1,6 @@
 .env.bat
 database/postgresql/createDatabase.sql
+src/c-commandline-dnet/bin
+src/c-commandline-dnet/obj
+src/l-dnet-embedlib/bin
+src/l-dnet-embedlib/obj
