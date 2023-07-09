@@ -1,2 +1,2 @@
 .env.bat
-./database/postgresql/createDatabase.sql
+database/postgresql/createDatabase.sql
