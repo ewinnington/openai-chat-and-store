@@ -1,5 +1,0 @@
-DROP DATABASE IF EXISTS chatstore;
-DROP USER IF EXISTS chatstore;
-CREATE USER chatstore WITH PASSWORD 'Eddbk28n3-dsf3-2dfvW';
-CREATE DATABASE chatstore;
-GRANT ALL PRIVILEGES ON DATABASE chatstore TO chatstore;
