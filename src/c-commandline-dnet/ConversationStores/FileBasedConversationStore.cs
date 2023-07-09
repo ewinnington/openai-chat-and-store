@@ -33,6 +33,10 @@ public class FileBasedConversationStore : IConversationStore
 
     public Conversation CreateOrAquireConversation(int? id, ChatUser user)
     {
+        if (id == null)
+        {
+            id = random.Next(100000, 999999);
+        }
         var path = Path.Combine(_basePath, "conversation", $"{id}.json");
         if (File.Exists(path))
         {
@@ -78,12 +82,16 @@ public class FileBasedConversationStore : IConversationStore
     {
         var promptResponse = new PromptResponse()
         {
+            Id =  DateTime.Now.Month           * 1_000_000
+                    + DateTime.Now.Day            * 10_000
+                    + DateTime.Now.Hour              * 100
+                    + DateTime.Now.Minute,  
             ConversationId = conversation.Id,
             OrderNum = conversation.PromptResponses?.Count ?? 0,
             Prompt = JsonSerializer.Serialize(chatCompletionsOptions)
         };
 
-        var path = Path.Combine(_basePath, "prompt_response", $"{conversation.Id}", $"{promptResponse.Id}.json");
+        var path = Path.Combine(_basePath, "prompt_response", $"{conversation.Id}", $"{promptResponse.OrderNum}-{promptResponse.Id}.json");
         var json = JsonSerializer.Serialize(promptResponse);
         Directory.CreateDirectory(Path.GetDirectoryName(path));
         File.WriteAllText(path, json);

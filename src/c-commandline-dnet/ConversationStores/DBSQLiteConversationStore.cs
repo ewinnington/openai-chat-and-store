@@ -80,12 +80,14 @@ CREATE TABLE IF NOT EXISTS prompt_response (
 
         if (id != null)
         {
-            conversation = connection.QuerySingle<Conversation>("SELECT * FROM conversation WHERE Id = @Id", new { id });
+            conversation = connection.QuerySingle<Conversation>("SELECT * FROM conversation WHERE Id = @Id", new { Id = id.Value });
             Debug.Assert(conversation != null && conversation.ChatUserId != user.Id, "Conversation does not belong to user");
             if (conversation != null)
             {
                 //load prompt responses
-                conversation.PromptResponses = connection.Query<PromptResponse>("SELECT * FROM PromptResponse WHERE ConversationId = @Id ORDER BY order_num", new { conversation.Id }).ToDictionary(x => x.Id);
+                var prompt_list = connection.Query<PromptResponse>("SELECT * FROM prompt_response WHERE conversation_id = @Id ORDER BY order_num", new { conversation.Id }).ToList();
+                foreach (var p in prompt_list)
+                    conversation.PromptResponses.Add(p.Id, p);
             }
         }
 
@@ -129,6 +131,6 @@ CREATE TABLE IF NOT EXISTS prompt_response (
 
         //update conversation last active
         conversation.LastActiveAt = DateTime.UtcNow;
-        connection.Execute("UPDATE conversation SET last_active_at = @LastActiveAt WHERE Id = @Id", new { LastActiveAt = conversation.LastActiveAt, conversation.Id });
+        connection.Execute("UPDATE conversation SET last_active_at = @LastActiveAt WHERE Id = @Id", new { LastActiveAt = conversation.LastActiveAt, Id = conversation.Id });
     }
 }
