@@ -33,8 +33,8 @@ public class DBPostgresConversationStore : IConversationStore
 
         if (id != null)
         {
-            conversation = connection.QuerySingle<Conversation>("SELECT * FROM conversation WHERE Id = @Id", new { Id = id.Value });
-            Debug.Assert(conversation != null && conversation.ChatUserId != user.Id, "Conversation does not belong to user");
+            conversation = connection.QuerySingle<Conversation>("SELECT id, chatuser_id AS ChatUserId, title, created_at as CreatedAt, last_active_at as LastActiveAt  FROM conversation WHERE Id = @Id", new { Id = id.Value });
+            Debug.Assert(conversation != null && conversation.ChatUserId == user.Id, "Conversation does not belong to user");
             if (conversation != null)
             {
                 //load prompt responses
@@ -44,9 +44,11 @@ public class DBPostgresConversationStore : IConversationStore
             }
         }
 
-        if (conversation == null)
-            conversation = connection.QuerySingle<Conversation>("INSERT INTO conversation (chatuser_id, title, created_at, last_active_at) VALUES (@ChatUserId, @Title, @CreatedAt, @LastActiveAt) RETURNING *", new { ChatUserId = user.Id, Title = "New Conversation", CreatedAt = DateTime.UtcNow, LastActiveAt = DateTime.UtcNow });
-
+        if (conversation == null){
+            int convId = connection.QuerySingle<int>("INSERT INTO conversation (chatuser_id, title, created_at, last_active_at) VALUES (@ChatUserId, @Title, @CreatedAt, @LastActiveAt) RETURNING Id", new { ChatUserId = user.Id, Title = "New Conversation", CreatedAt = DateTime.UtcNow, LastActiveAt = DateTime.UtcNow });
+            conversation = connection.QuerySingle<Conversation>("SELECT id, chatuser_id AS ChatUserId, title, created_at as CreatedAt, last_active_at as LastActiveAt FROM conversation WHERE Id = @Id", new { Id = convId });
+        }
+        //Console.WriteLine($"Conversation {conversation.Id} created for user {user.Id} but belongs to {conversation.ChatUserId} with title {conversation.Title}");
         Debug.Assert(conversation != null);
         return conversation;
     }
@@ -72,8 +74,8 @@ public class DBPostgresConversationStore : IConversationStore
 
         //update user stats from the response json "Usage": {"TotalTokens": 160, "PromptTokens": 59, "CompletionTokens": 101}
         var usage = response.Usage;
-        user.InputTokensTotal += usage.TotalTokens;
-        user.OutputTokensTotal += usage.TotalTokens;
+        user.InputTokensTotal += usage.PromptTokens;
+        user.OutputTokensTotal += usage.CompletionTokens;
         connection.Execute("UPDATE chat_user SET input_tokens_total = @InputTokensTotal, output_tokens_total = @OutputTokensTotal WHERE Id = @Id", user);
 
         //update conversation last active

@@ -29,7 +29,7 @@ INSERT INTO system_prompt (prompt_name, system_prompt_text) VALUES ('default', '
 CREATE TABLE IF NOT EXISTS chat_user (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    default_prompt_id INTEGER,
+    default_prompt_id INTEGER DEFAULT 1 NOT NULL,
     input_tokens_total INTEGER NOT NULL,
     output_tokens_total INTEGER NOT NULL,
     FOREIGN KEY (default_prompt_id) REFERENCES system_prompt(id)
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS chat_user (
 
 CREATE TABLE IF NOT EXISTS conversation (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    chatuser_id INTEGER,
+    chatuser_id INTEGER NOT NULL,
     title TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_active_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS conversation (
 
 CREATE TABLE IF NOT EXISTS prompt_response (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    conversation_id INTEGER,
+    conversation_id INTEGER NOT NULL,
     order_num INTEGER NOT NULL,
     prompt TEXT NOT NULL,
     response TEXT,
@@ -70,7 +70,6 @@ CREATE TABLE IF NOT EXISTS prompt_response (
         }
 
         Debug.Assert(user != null);
-        user.Id = (int)(long)user.Id;
         return user;
     }
 
@@ -80,8 +79,8 @@ CREATE TABLE IF NOT EXISTS prompt_response (
 
         if (id != null)
         {
-            conversation = connection.QuerySingle<Conversation>("SELECT * FROM conversation WHERE Id = @Id", new { Id = id.Value });
-            Debug.Assert(conversation != null && conversation.ChatUserId != user.Id, "Conversation does not belong to user");
+            conversation = connection.QuerySingle<Conversation>("SELECT id, chatuser_id AS ChatUserId, title, created_at as CreatedAt, last_active_at as LastActiveAt  FROM conversation WHERE Id = @Id", new { Id = id.Value });
+            Debug.Assert(conversation != null && conversation.ChatUserId == user.Id, "Conversation does not belong to user");
             if (conversation != null)
             {
                 //load prompt responses
@@ -94,10 +93,9 @@ CREATE TABLE IF NOT EXISTS prompt_response (
         if (conversation == null)
         {
             id = connection.QuerySingle<int>("INSERT INTO conversation (chatuser_id, title, created_at, last_active_at) VALUES (@ChatUserId, @Title, @CreatedAt, @LastActiveAt); SELECT last_insert_rowid()", new { ChatUserId = user.Id, Title = "New Conversation", CreatedAt = DateTime.UtcNow, LastActiveAt = DateTime.UtcNow });
-            conversation = connection.QuerySingleOrDefault<Conversation>("SELECT * FROM conversation WHERE Id = @Id", new { Id = id });
+            conversation = connection.QuerySingle<Conversation>("SELECT id, chatuser_id AS ChatUserId, title, created_at as CreatedAt, last_active_at as LastActiveAt FROM conversation WHERE Id = @Id", new { Id = id.Value });
         }
         Debug.Assert(conversation != null);
-        conversation.Id = (int)(long)conversation.Id;
         return conversation;
     }
 
@@ -125,8 +123,8 @@ CREATE TABLE IF NOT EXISTS prompt_response (
 
         //update user stats from the response json "Usage": {"TotalTokens": 160, "PromptTokens": 59, "CompletionTokens": 101}
         var usage = response.Usage;
-        user.InputTokensTotal += usage.TotalTokens;
-        user.OutputTokensTotal += usage.TotalTokens;
+        user.InputTokensTotal += usage.PromptTokens;
+        user.OutputTokensTotal += usage.CompletionTokens;
         connection.Execute("UPDATE chat_user SET input_tokens_total = @InputTokensTotal, output_tokens_total = @OutputTokensTotal WHERE Id = @Id", user);
 
         //update conversation last active

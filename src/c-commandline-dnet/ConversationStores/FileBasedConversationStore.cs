@@ -42,7 +42,7 @@ public class FileBasedConversationStore : IConversationStore
         {
             var json = File.ReadAllText(path);
             var conversation = JsonSerializer.Deserialize<Conversation>(json);
-            Debug.Assert(conversation != null && conversation.ChatUserId != user.Id, "Conversation does not belong to user");
+            Debug.Assert(conversation != null && conversation.ChatUserId == user.Id, "Conversation does not belong to user");
             if (conversation != null)
             {
                 //load prompt responses
@@ -110,8 +110,8 @@ public class FileBasedConversationStore : IConversationStore
 
         //update user stats from the response json "Usage": {"TotalTokens": 160, "PromptTokens": 59, "CompletionTokens": 101}
         var usage = response.Usage;
-        user.InputTokensTotal += usage.TotalTokens;
-        user.OutputTokensTotal += usage.TotalTokens;
+        user.InputTokensTotal += usage.PromptTokens;
+        user.OutputTokensTotal += usage.CompletionTokens;
         var userPath = Path.Combine(_basePath, "chat_user", $"{user.Name}.json");
         json = JsonSerializer.Serialize(user);
         File.WriteAllText(userPath, json);

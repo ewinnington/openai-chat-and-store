@@ -9,16 +9,17 @@ using Dapper;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 
-class Program
+public class Program
 {
-    static async Task Main(string[] args)
+
+    public static async Task Main(string[] args)
     {
         string selector = GetEnvironmentVariable("OPENAI_OR_AZURE") ?? "OPENAI";
         string endpoint = GetEnvironmentVariable("AZURE_ENDPOINT") ?? "";
         string key = GetEnvironmentVariable("OPENAI_API_KEY") ?? "";
         string engine = GetEnvironmentVariable("OPENAI_MODEL") ?? "gpt-3.5-turbo";
         string embeddings = GetEnvironmentVariable("OPENAI_MODEL_EMBEDS") ?? "text-embedding-ada-002";
-        string conversationStoreType = GetEnvironmentVariable("CONVERSATION_STORE_TYPE") ?? "postgresql";
+        string conversationStoreType = GetEnvironmentVariable("CONVERSATION_STORE_TYPE") ?? "postgres";
 
         bool useAzureOpenAI = selector == "AZURE";
 
@@ -28,21 +29,16 @@ class Program
                 new AzureKeyCredential(key))
             : new OpenAIClient(key);
 
-
         IConversationStore store = SelectStore(conversationStoreType);
-
 
         ChatUser user = store.CreateOrAquireChatUser("testuser");
 
         DirectChat(engine, client, store, user);
-
-        /*
-        DirectChat(engine, client);
+/*
         Console.WriteLine("  -------  ");
         CheckEmbeds(embeddings, client);
         Console.WriteLine("  -------  ");
-        await StreamingChat(engine, client);
-        */
+        await StreamingChat(engine, client);        */
     }
 
     private static IConversationStore SelectStore(string SelectedStore)
