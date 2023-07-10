@@ -18,10 +18,10 @@ public class DBPostgresConversationStore : IConversationStore
     {
         ChatUser user = null;
 
-        user = connection.QuerySingleOrDefault<ChatUser>("SELECT * FROM chat_user WHERE Name = @Name", new { Name });
+        user = connection.QuerySingleOrDefault<ChatUser>("SELECT id as Id, name as Name, default_prompt_id as DefaultPromptId, input_tokens_total as InputTokensTotal, output_tokens_total as OutputTokensTotal FROM chat_user WHERE Name = @Name", new { Name });
 
         if (user == null)
-            user = connection.QuerySingleOrDefault<ChatUser>("INSERT INTO chat_user (Name, input_tokens_total, output_tokens_total) VALUES (@Name, 0, 0) RETURNING *", new { Name });
+            user = connection.QuerySingleOrDefault<ChatUser>("INSERT INTO chat_user (name, input_tokens_total, output_tokens_total) VALUES (@Name, 0, 0) RETURNING *", new { Name });
 
         Debug.Assert(user != null);
         return user;
@@ -38,7 +38,7 @@ public class DBPostgresConversationStore : IConversationStore
             if (conversation != null)
             {
                 //load prompt responses
-                var prompt_list = connection.Query<PromptResponse>("SELECT * FROM prompt_response WHERE conversation_id = @Id ORDER BY order_num", new { conversation.Id }).ToList();
+                var prompt_list = connection.Query<PromptResponse>("SELECT id as Id, conversation_id as ConversationId, order_num as OrderNum, prompt as Prompt, response as Response FROM prompt_response WHERE conversation_id = @Id ORDER BY order_num", new { conversation.Id }).ToList();
                 foreach (var p in prompt_list)
                     conversation.PromptResponses.Add(p.Id, p);
             }
