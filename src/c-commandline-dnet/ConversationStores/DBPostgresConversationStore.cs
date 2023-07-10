@@ -82,5 +82,23 @@ public class DBPostgresConversationStore : IConversationStore
         conversation.LastActiveAt = DateTime.UtcNow; 
         connection.Execute("UPDATE conversation SET last_active_at = @LastActiveAt WHERE Id = @Id", new { LastActiveAt = conversation.LastActiveAt, Id = conversation.Id });
     }
+
+    public void UpdateResponse(ChatUser user, Conversation conversation, PromptResponse promptResponse, string response)
+    {
+        promptResponse.Response = response;
+        connection.Execute("UPDATE prompt_response SET response = @Response::jsonb WHERE Id = @Id", promptResponse);
+
+        //update user stats from the response json "Usage": {"TotalTokens": 160, "PromptTokens": 59, "CompletionTokens": 101}
+        //Todo: Not currently updating tokens from the response, since the streaming API doesn't provide them to my knowledge
+
+        /*var usage = JsonSerializer.Deserialize<ChatCompletions>(response).Usage;
+        user.InputTokensTotal += usage.PromptTokens;
+        user.OutputTokensTotal += usage.CompletionTokens;
+        connection.Execute("UPDATE chat_user SET input_tokens_total = @InputTokensTotal, output_tokens_total = @OutputTokensTotal WHERE Id = @Id", user);*/
+
+        //update conversation last active
+        conversation.LastActiveAt = DateTime.UtcNow; 
+        connection.Execute("UPDATE conversation SET last_active_at = @LastActiveAt WHERE Id = @Id", new { LastActiveAt = conversation.LastActiveAt, Id = conversation.Id });
+    }
 }
 

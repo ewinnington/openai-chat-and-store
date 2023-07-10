@@ -8,6 +8,7 @@ using Npgsql;
 using Dapper;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
+using System.Text;
 
 public class Program
 {
@@ -33,12 +34,12 @@ public class Program
 
         ChatUser user = store.CreateOrAquireChatUser("testuser");
 
+   /*   
         DirectChat(engine, client, store, user);
-/*
         Console.WriteLine("  -------  ");
-        CheckEmbeds(embeddings, client);
+        CheckEmbeds(embeddings, client);*/
         Console.WriteLine("  -------  ");
-        await StreamingChat(engine, client);        */
+        await StreamingChat(engine, client, store, user);        
     }
 
     private static IConversationStore SelectStore(string SelectedStore)
@@ -131,10 +132,23 @@ public class Program
         conversationStore.UpdateResponse(user, conversation, promptResponse, response.Value);
     }
 
-    private static async Task StreamingChat(string engine, OpenAIClient client)
+    public static void Emit(string message)
     {
+        Console.WriteLine(message);
+    }
+
+    private static async Task StreamingChat(string engine, OpenAIClient client, IConversationStore conversationStore, ChatUser user, Conversation conversation = null)
+    {
+        //Currently not handling the cancellation token, which could be intercepted at any time. 
+
+        
         var chatCompletionsOptions = getDemoChat();
 
+        conversation = conversationStore.CreateOrAquireConversation(conversation == null ? null : conversation.Id, user);
+        PromptResponse promptResponse = conversationStore.CreateRequest(conversation, engine, chatCompletionsOptions);
+
+        StringBuilder ResponseBuilder = new StringBuilder();
+        
         Response<StreamingChatCompletions> response = await client.GetChatCompletionsStreamingAsync(
             deploymentOrModelName: "gpt-3.5-turbo",
             chatCompletionsOptions);
@@ -142,13 +156,49 @@ public class Program
 
         await foreach (StreamingChatChoice choice in streamingChatCompletions.GetChoicesStreaming())
         {
-            Console.WriteLine("Choice index: " + choice.Index + " -- Finish Reason: " + choice.FinishReason);
             await foreach (ChatMessage message in choice.GetMessageStreaming())
             {
-                Console.WriteLine("\t\t" + message.Content);
+                ResponseBuilder.Append(message.Content);
+                Emit(message.Content); //This is to send to the client side for display
             }
-            Console.WriteLine();
         }
+
+        /*  streamingChatCompletions {"Created":"2023-07-10T01:09:07Z","Id":"chatcmpl-7aZghA55VFgP8oJMfluI4fxeY4Eq4"}
+            choice {"Index":0,"FinishReason":null}
+            message {"Role":{"Label":"assistant"},"Content":""}
+                    {"Role":{"Label":"assistant"},"Content":"A"}
+                    {"Role":{"Label":"assistant"},"Content":" base"}*/
+
+            var data = new
+            {
+                id = streamingChatCompletions.Id,
+                @object = "chat.streaming",
+                created = streamingChatCompletions.Created,
+                model = engine,
+                choices = new[]
+                {
+                    new
+                    {
+                        index = 0,
+                        message = new
+                        {
+                            role = "assistant",
+                            content = ResponseBuilder.ToString()
+                        },
+                        finish_reason = "null"
+                    }
+                },
+                usage = new
+                {
+                    prompt_tokens = 0,
+                    completion_tokens = 0,
+                    total_tokens = 0
+                }
+            };
+
+           //Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(data)); 
+           conversationStore.UpdateResponse(user, conversation, promptResponse, System.Text.Json.JsonSerializer.Serialize(data));
+
     }
 }
 

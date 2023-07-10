@@ -104,7 +104,7 @@ public class FileBasedConversationStore : IConversationStore
         //Warning - needs a lock because doesn't re-read from disk the previous state and might be invalid
         promptResponse.Response = JsonSerializer.Serialize(response);
 
-        var path = Path.Combine(_basePath, "prompt_response", $"{conversation.Id}", $"{promptResponse.Id}.json");
+        var path = Path.Combine(_basePath, "prompt_response", $"{conversation.Id}", $"{promptResponse.OrderNum}-{promptResponse.Id}.json");
         var json = JsonSerializer.Serialize(promptResponse);
         File.WriteAllText(path, json);
 
@@ -120,6 +120,31 @@ public class FileBasedConversationStore : IConversationStore
         conversation.LastActiveAt = DateTime.UtcNow;
         path = Path.Combine(_basePath, "conversation", $"{conversation.Id}.json");
         json = JsonSerializer.Serialize(conversation);
+        File.WriteAllText(path, json);
+    }
+
+    public void UpdateResponse(ChatUser user, Conversation conversation, PromptResponse promptResponse, string response)
+    {
+        //Warning - needs a lock because doesn't re-read from disk the previous state and might be invalid
+        promptResponse.Response = response;
+
+        var path = Path.Combine(_basePath, "prompt_response", $"{conversation.Id}", $"{promptResponse.OrderNum}-{promptResponse.Id}.json");
+        var json = JsonSerializer.Serialize(promptResponse);
+        File.WriteAllText(path, json);
+
+        //update user stats from the response json "Usage": {"TotalTokens": 160, "PromptTokens": 59, "CompletionTokens": 101}
+        //Todo: Not currently updating tokens from the response, since the streaming API doesn't provide them to my knowledge
+        /*var usage = response.Usage;
+        user.InputTokensTotal += usage.PromptTokens;
+        user.OutputTokensTotal += usage.CompletionTokens;
+        var userPath = Path.Combine(_basePath, "chat_user", $"{user.Name}.json");
+        json = JsonSerializer.Serialize(user);
+        File.WriteAllText(userPath, json);*/
+
+        //update conversation last active
+        conversation.LastActiveAt = DateTime.UtcNow;
+        path = Path.Combine(_basePath, "conversation", $"{conversation.Id}.json");
+        json = JsonSerializer.Serialize(conversation); //todo: conversation is probably serializing the entire conversation with all prompts due to the tree structure - need to fix
         File.WriteAllText(path, json);
     }
 }
