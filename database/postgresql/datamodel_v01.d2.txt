@@ -1,0 +1,37 @@
+system_prompt: {
+  shape: sql_table
+  id: int {constraint: primary_key}
+  prompt_name: string
+  system_prompt_text: string
+}
+
+chat_user: {
+  shape: sql_table
+  id: int {constraint: primary_key}
+  name: string
+  default_prompt_id: int
+  input_tokens_total: bigint
+  output_tokens_total: bigint
+}
+
+conversation: {
+  shape: sql_table
+  id: int {constraint: primary_key}
+  chatuser_id: int
+  title: string
+  created_at: timestamptz
+  last_active_at: timestamptz
+}
+
+prompt_response: {
+  shape: sql_table
+  id: int {constraint: primary_key}
+  conversation_id: int
+  order_num: int
+  prompt: jsonb
+  response: jsonb
+}
+
+prompt_response.conversation_id -> conversation.id
+conversation.chatuser_id -> chat_user.id
+chat_user.default_prompt_id -> system_prompt.id
